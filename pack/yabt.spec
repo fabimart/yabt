@@ -1,5 +1,5 @@
 Name:		yabt
-Version:	0.1
+Version:	0.2
 Release:	1%{?dist}
 Summary:	Yet Another Backup Tool
 
@@ -98,5 +98,10 @@ rm -rf %{buildroot}
 %dir	%{_localstatedir}/lib/%{name}/postgresql
 
 %changelog
+* Mon Apr  6 2015 Fabiano Martins <fabiano.martins@trt4.jus.br> - 0.2-1
+- accept YABT_TMP_DIR to define temporary directory
+- accept YABT_COMPRESS_OPTION to define options for compression
+- use parallel versions of gz, xz or bzip2 if available
+
 * Thu Jul 10 2014 Fabiano Martins <fabiano.martins@trt4.jus.br> - 0.1-1
 - initial version

@@ -6,6 +6,11 @@
 #
 # History:
 # 18/07/2014 - Fabiano Martins - Initial version
+# 23/03/2015 - Fabiano Martins - Accept YABT_TMP_DIR to define temporary
+#                                directory and YABT_COMPRESS_OPTION to
+#                                extra optons. In addition to it, uses
+#                                parallel version of gz, xz or bzip2 if
+#                                available.
 
 unset POSIXLY_CORRECT
 
@@ -93,6 +98,9 @@ yabt_abort_syntax()
 }
 
 yabt_compress() {
+
+	YABT_COMPRESS_CMD=""
+
 	# Only for informational purpose, compression result of a sample MySQL dump
 	# of 36M (36760517 bytes) with each technique on maximum compression:
 	# - xz (with xz) : 32s, 3.0Mb (3071944 bytes)
@@ -100,15 +108,39 @@ yabt_compress() {
 	# - bz2..........: 11s, 3.9Mb (3986961 bytes)
 	# - gz...........:  6s, 5.0Mb (5199968 bytes)
 	case "${YABT_COMPRESS}" in
-		"")	cat > "$1"
+		"")	YABT_COMPRESS_CMD="cat"
 		;;
-		"xz")	xz -z9 > "$1"
+		"xz")	if type -p pxz > /dev/null ; then
+				YABT_COMPRESS_CMD="pxz -z"
+			else
+				YABT_COMPRESS_CMD="xz -z"
+			fi
 		;;
-		"bz2")	bzip2 -9 > "$1"
+		"bz2")	if type -p lbzip2 > /dev/null ; then
+				YABT_COMPRESS_CMD="lbzip2"
+			elif type -p pbzip2 > /dev/null ; then
+				YABT_COMPRESS_CMD="pbzip2"
+			else
+				YABT_COMPRESS_CMD="bzip2"
+			fi
 		;;
-		"gz")	gzip -9 > "$1"
+		"gz")	if type -p pigz > /dev/null ; then
+				YABT_COMPRESS_CMD="pigz"
+			else
+				YABT_COMPRESS_CMD="gzip"
+			fi
+		;;
+		*)	echo "invalid YABT_COMPRESS option: \"${YABT_COMPRESS}\""
+			exit 1
 		;;
 	esac
+
+	# Appends extra options
+	if [ ! -z "${YABT_COMPRESS}" ] ; then
+		YABT_COMPRESS_CMD="${YABT_COMPRESS_CMD} ${YABT_COMPRESS_OPTION:--9}"
+	fi
+
+	${YABT_COMPRESS_CMD} > "$1"
 }
 
 # If backup dir does not exist, create it
@@ -122,7 +154,11 @@ yabt_make_backup_dir() {
 
 # Make temporary file where dumps will be saved
 YABT_MSG_ERR="temporary file creation"
-YABT_TMP_FILE="$(mktemp)"
+if [ -z "${YABT_TMP_DIR}" ] ; then
+	YABT_TMP_FILE="$(mktemp yabt-XXXXXX.tmp)"
+else
+	YABT_TMP_FILE="$(mktemp --tmpdir=${YABT_TMP_DIR} yabt-XXXXXX.tmp)"
+fi
 unset YABT_MSG_ERR
 
 # Treatment of the parameters
